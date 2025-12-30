@@ -290,3 +290,14 @@ All errors are returned in a user-friendly format.
 
 MIT
 
+"startinfinity": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "-e", "STARTINFINITY_API_TOKEN=your_api_token_here",
+        "-e", "STARTINFINITY_WORKSPACE_ID=your_workspace_id_here",
+        "startinfinity-mcp-server:latest"
+      ]
+    }

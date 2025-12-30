@@ -33,7 +33,7 @@ export class StartInfinityClient {
     });
   }
 
-  private async request<T>(method: 'GET' | 'POST' | 'PATCH' | 'DELETE', url: string, data?: any): Promise<T> {
+  private async request<T>(method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE', url: string, data?: any): Promise<T> {
     try {
       const response = await this.client.request<T>({
         method,
@@ -93,6 +93,8 @@ export class StartInfinityClient {
     if (options?.after) {
       params.append('after', options.after);
     }
+    // Add expand parameter to include values
+    params.append('expand[]', 'values');
     
     const queryString = params.toString();
     const url = `/workspaces/${workspaceId}/boards/${boardId}/items${queryString ? `?${queryString}` : ''}`;
@@ -100,11 +102,27 @@ export class StartInfinityClient {
   }
 
   async getItem(workspaceId: string, boardId: string, itemId: string): Promise<any> {
-    return this.request<any>('GET', `/workspaces/${workspaceId}/boards/${boardId}/items/${itemId}`);
+    // Add expand parameter to include values
+    return this.request<any>('GET', `/workspaces/${workspaceId}/boards/${boardId}/items/${itemId}?expand[]=values`);
   }
 
   async updateItem(workspaceId: string, boardId: string, itemId: string, values: UpdateItemValues): Promise<any> {
-    return this.request<any>('PATCH', `/workspaces/${workspaceId}/boards/${boardId}/items/${itemId}`, { values });
+    // Convert key-value object to array format expected by API
+    const valuesArray = Object.entries(values).map(([attributeId, data]) => ({
+      attribute_id: attributeId,
+      data: data,
+    }));
+    return this.request<any>('PUT', `/workspaces/${workspaceId}/boards/${boardId}/items/${itemId}`, { 
+      values: valuesArray 
+    });
+  }
+
+  async getFolders(workspaceId: string, boardId: string): Promise<any> {
+    return this.request<any>('GET', `/workspaces/${workspaceId}/boards/${boardId}/folders`);
+  }
+
+  async getAttributes(workspaceId: string, boardId: string): Promise<any> {
+    return this.request<any>('GET', `/workspaces/${workspaceId}/boards/${boardId}/attributes`);
   }
 
   async getView(workspaceId: string, boardId: string, viewId: string): Promise<any> {
@@ -115,6 +133,11 @@ export class StartInfinityClient {
     return this.request<any>('POST', `/workspaces/${workspaceId}/boards/${boardId}/items/${itemId}/comments`, {
       content,
     });
+  }
+
+  async getMembers(workspaceId?: string): Promise<any> {
+    const wsId = this.getWorkspaceId(workspaceId);
+    return this.request<any>('GET', `/workspaces/${wsId}/members`);
   }
 }
 

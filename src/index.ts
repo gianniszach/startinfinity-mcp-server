@@ -10,6 +10,7 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import dotenv from 'dotenv';
 import { StartInfinityClient } from './api/startinfinity.js';
+import { formatItems, formatItem, createItemSummary, createMemberMap, createSnapshotReport, Attribute } from './utils/itemHelpers.js';
 
 // Load environment variables
 dotenv.config();
@@ -74,6 +75,24 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: 'fetch_board',
         description: 'Gets detailed information about a specific board',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            workspaceId: {
+              type: 'string',
+              description: 'Workspace ID',
+            },
+            boardId: {
+              type: 'string',
+              description: 'Board ID',
+            },
+          },
+          required: ['workspaceId', 'boardId'],
+        },
+      },
+      {
+        name: 'fetch_folders',
+        description: 'Lists all folders in a board',
         inputSchema: {
           type: 'object',
           properties: {
@@ -194,6 +213,67 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         },
       },
       {
+        name: 'fetch_attributes',
+        description: 'Lists all attributes for a board to understand the attribute structure',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            workspaceId: {
+              type: 'string',
+              description: 'Workspace ID',
+            },
+            boardId: {
+              type: 'string',
+              description: 'Board ID',
+            },
+          },
+          required: ['workspaceId', 'boardId'],
+        },
+      },
+      {
+        name: 'fetch_members',
+        description: 'Lists all members in a workspace to map member IDs to names',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            workspaceId: {
+              type: 'string',
+              description: 'Workspace ID (optional if STARTINFINITY_WORKSPACE_ID is set)',
+            },
+          },
+        },
+      },
+      {
+        name: 'fetch_items_formatted',
+        description: 'Fetches items from a board/folder with formatted attributes and titles for reporting',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            workspaceId: {
+              type: 'string',
+              description: 'Workspace ID',
+            },
+            boardId: {
+              type: 'string',
+              description: 'Board ID',
+            },
+            folderId: {
+              type: 'string',
+              description: 'Optional folder ID to filter items',
+            },
+            limit: {
+              type: 'number',
+              description: 'Optional limit for pagination',
+            },
+            includeSummary: {
+              type: 'boolean',
+              description: 'Include a summary report (default: true)',
+            },
+          },
+          required: ['workspaceId', 'boardId'],
+        },
+      },
+      {
         name: 'post_comment',
         description: 'Creates a comment on a specific item',
         inputSchema: {
@@ -217,6 +297,32 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
           },
           required: ['workspaceId', 'boardId', 'itemId', 'content'],
+        },
+      },
+      {
+        name: 'fetch_folder_snapshot',
+        description: 'Processes all items under a folder (including subfolders) and provides a snapshot report of what is in progress now and what is pending in the near future',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            workspaceId: {
+              type: 'string',
+              description: 'Workspace ID',
+            },
+            boardId: {
+              type: 'string',
+              description: 'Board ID',
+            },
+            folderName: {
+              type: 'string',
+              description: 'Folder name to process (case-insensitive partial match)',
+            },
+            folderId: {
+              type: 'string',
+              description: 'Folder ID (optional, if provided folderName is ignored)',
+            },
+          },
+          required: ['workspaceId', 'boardId'],
         },
       },
     ],
@@ -265,6 +371,26 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           );
         }
         const result = await apiClient.getBoard(workspaceId, boardId);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      }
+
+      case 'fetch_folders': {
+        const workspaceId = args?.workspaceId as string;
+        const boardId = args?.boardId as string;
+        if (!workspaceId || !boardId) {
+          throw new McpError(
+            ErrorCode.InvalidParams,
+            'workspaceId and boardId are required'
+          );
+        }
+        const result = await apiClient.getFolders(workspaceId, boardId);
         return {
           content: [
             {
@@ -368,6 +494,99 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         };
       }
 
+      case 'fetch_attributes': {
+        const workspaceId = args?.workspaceId as string;
+        const boardId = args?.boardId as string;
+        if (!workspaceId || !boardId) {
+          throw new McpError(
+            ErrorCode.InvalidParams,
+            'workspaceId and boardId are required'
+          );
+        }
+        const result = await apiClient.getAttributes(workspaceId, boardId);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      }
+
+      case 'fetch_members': {
+        const workspaceId = args?.workspaceId as string | undefined;
+        const result = await apiClient.getMembers(workspaceId);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      }
+
+      case 'fetch_items_formatted': {
+        const workspaceId = args?.workspaceId as string;
+        const boardId = args?.boardId as string;
+        const folderId = args?.folderId as string | undefined;
+        const limit = args?.limit as number | undefined;
+        const includeSummary = args?.includeSummary !== false; // default to true
+        
+        if (!workspaceId || !boardId) {
+          throw new McpError(
+            ErrorCode.InvalidParams,
+            'workspaceId and boardId are required'
+          );
+        }
+
+        // Fetch items, attributes, and members in parallel
+        const [itemsResult, attributesResult, membersResult] = await Promise.all([
+          apiClient.getItems(workspaceId, boardId, { folderId, limit }),
+          apiClient.getAttributes(workspaceId, boardId),
+          apiClient.getMembers(workspaceId).catch(() => ({ data: [] })), // Gracefully handle errors
+        ]);
+
+        const items = itemsResult.data || [];
+        const attributes = attributesResult.data || [];
+        const members = membersResult.data || [];
+
+        // Create member map for resolving member IDs to names
+        const memberMap = createMemberMap(members);
+
+        // Find the Name attribute ID
+        const nameAttribute = attributes.find((attr: any) => attr.name === 'Name');
+        const nameAttributeId = nameAttribute?.id || '54767acf-0832-4080-839c-5556bbbd9f10';
+
+        // Format items with member mapping
+        const formattedItems = formatItems(items, attributes, nameAttributeId, memberMap);
+
+        // Create response
+        const response: any = {
+          items: formattedItems,
+          pagination: {
+            has_more: itemsResult.has_more || false,
+            before: itemsResult.before,
+            after: itemsResult.after,
+          },
+        };
+
+        // Add summary if requested
+        if (includeSummary) {
+          response.summary = createItemSummary(formattedItems);
+        }
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(response, null, 2),
+            },
+          ],
+        };
+      }
+
       case 'post_comment': {
         const workspaceId = args?.workspaceId as string;
         const boardId = args?.boardId as string;
@@ -385,6 +604,125 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             {
               type: 'text',
               text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      }
+
+      case 'fetch_folder_snapshot': {
+        const workspaceId = args?.workspaceId as string;
+        const boardId = args?.boardId as string;
+        const folderName = args?.folderName as string | undefined;
+        const folderId = args?.folderId as string | undefined;
+        
+        if (!workspaceId || !boardId) {
+          throw new McpError(
+            ErrorCode.InvalidParams,
+            'workspaceId and boardId are required'
+          );
+        }
+
+        // Fetch folders, attributes, and members
+        const [foldersResult, attributesResult, membersResult] = await Promise.all([
+          apiClient.getFolders(workspaceId, boardId),
+          apiClient.getAttributes(workspaceId, boardId),
+          apiClient.getMembers(workspaceId).catch(() => ({ data: [] })),
+        ]);
+
+        const folders = foldersResult.data || [];
+        const attributes = attributesResult.data || [];
+        const members = membersResult.data || [];
+        const memberMap = createMemberMap(members);
+
+        // Find the target folder
+        let targetFolder: any = null;
+        if (folderId) {
+          targetFolder = folders.find((f: any) => f.id === folderId);
+        } else if (folderName) {
+          const lowerFolderName = folderName.toLowerCase();
+          targetFolder = folders.find((f: any) => 
+            f.name && f.name.toLowerCase().includes(lowerFolderName)
+          );
+        }
+
+        if (!targetFolder) {
+          throw new McpError(
+            ErrorCode.InvalidParams,
+            `Folder not found: ${folderName || folderId}`
+          );
+        }
+
+        // Recursively collect all folder IDs (parent + subfolders)
+        const folderIds: string[] = [targetFolder.id];
+        const collectSubfolders = (parentId: string) => {
+          const subfolders = folders.filter((f: any) => f.parent_id === parentId);
+          for (const subfolder of subfolders) {
+            folderIds.push(subfolder.id);
+            collectSubfolders(subfolder.id);
+          }
+        };
+        collectSubfolders(targetFolder.id);
+
+        // Fetch all items from all folders
+        const allItems: any[] = [];
+        for (const fid of folderIds) {
+          let hasMore = true;
+          let after: string | undefined = undefined;
+          
+          while (hasMore) {
+            const itemsResult = await apiClient.getItems(workspaceId, boardId, {
+              folderId: fid,
+              limit: 100,
+              after,
+            });
+            
+            const items = itemsResult.data || [];
+            allItems.push(...items);
+            
+            hasMore = itemsResult.has_more || false;
+            after = itemsResult.after;
+          }
+        }
+
+        // Find the Name attribute ID
+        const nameAttribute = attributes.find((attr: any) => attr.name === 'Name');
+        const nameAttributeId = nameAttribute?.id || '54767acf-0832-4080-839c-5556bbbd9f10';
+
+        // Format all items
+        const formattedItems = formatItems(allItems, attributes as Attribute[], nameAttributeId, memberMap);
+
+        // Create snapshot report
+        const snapshot = createSnapshotReport(formattedItems, attributes as Attribute[]);
+
+        // Create response with folder information
+        const response = {
+          folder: {
+            id: targetFolder.id,
+            name: targetFolder.name,
+            subfoldersProcessed: folderIds.length - 1,
+          },
+          snapshot: {
+            inProgress: snapshot.inProgress.map(item => ({
+              id: item.id,
+              title: item.title,
+              folderId: item.metadata.folder_id,
+              attributes: item.attributes,
+            })),
+            pendingNearFuture: snapshot.pendingNearFuture.map(item => ({
+              id: item.id,
+              title: item.title,
+              folderId: item.metadata.folder_id,
+              attributes: item.attributes,
+            })),
+            summary: snapshot.summary,
+          },
+        };
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(response, null, 2),
             },
           ],
         };
