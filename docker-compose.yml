@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  startinfinity-mcp-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: startinfinity-mcp-server:latest
+    stdin_open: true
+    tty: true
+    environment:
+      - STARTINFINITY_API_TOKEN=${STARTINFINITY_API_TOKEN}
+      - STARTINFINITY_WORKSPACE_ID=${STARTINFINITY_WORKSPACE_ID}
+    # MCP servers communicate via stdio, so we keep stdin_open and tty enabled
+

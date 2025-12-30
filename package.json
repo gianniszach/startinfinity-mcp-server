@@ -1,0 +1,32 @@
+{
+  "name": "startinfinity-mcp-server",
+  "version": "1.0.0",
+  "description": "MCP server for StartInfinity API integration",
+  "main": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsc --watch"
+  },
+  "keywords": [
+    "mcp",
+    "startinfinity",
+    "api"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.4",
+    "axios": "^1.7.7",
+    "dotenv": "^16.4.5"
+  },
+  "bin": {
+    "startinfinity-mcp-server": "./dist/index.js"
+  },
+  "devDependencies": {
+    "@types/node": "^22.7.5",
+    "typescript": "^5.6.3"
+  }
+}
+
