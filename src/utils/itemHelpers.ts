@@ -337,3 +337,60 @@ export function createSnapshotReport(
   };
 }
 
+/**
+ * Formats an item as a simple JSON object with attribute names as keys
+ * @param item - The item object with values array
+ * @param attributes - Array of attribute definitions to map IDs to names
+ * @param memberMap - Optional map of member IDs to names for resolving member attributes
+ * @returns A JSON object with attribute names as keys and values (or "-" if no value)
+ */
+export function formatItemAsJson(
+  item: ItemWithValues,
+  attributes: Attribute[] = [],
+  memberMap?: MemberMap
+): Record<string, any> {
+  const attributeMap = new Map(attributes.map(attr => [attr.id, attr]));
+  const result: Record<string, any> = {};
+  
+  // First, create a map of all attributes with their values
+  const attributeValues: Map<string, any> = new Map();
+  
+  if (item.values && Array.isArray(item.values)) {
+    for (const valueObj of item.values) {
+      if (valueObj.deleted) continue; // Skip deleted values
+      
+      const attribute = attributeMap.get(valueObj.attribute_id);
+      const attrName = attribute ? attribute.name : valueObj.attribute_id;
+      
+      let displayValue = valueObj.data;
+      
+      // If this is a members attribute and we have a member map, resolve IDs to names
+      if (attribute?.type === 'members' && Array.isArray(valueObj.data) && memberMap) {
+        displayValue = resolveMemberNames(valueObj.data, memberMap);
+      }
+      
+      attributeValues.set(attrName, displayValue);
+    }
+  }
+  
+  // Now, create the result object with all attributes
+  // Include all attributes from the board, using "-" for those without values
+  for (const attribute of attributes) {
+    const value = attributeValues.get(attribute.name);
+    result[attribute.name] = value !== undefined && value !== null && value !== '' 
+      ? value 
+      : '-';
+  }
+  
+  // Also include any attributes that were in the item but not in the board attributes list
+  for (const [attrName, value] of attributeValues.entries()) {
+    if (!result.hasOwnProperty(attrName)) {
+      result[attrName] = value !== undefined && value !== null && value !== '' 
+        ? value 
+        : '-';
+    }
+  }
+  
+  return result;
+}
+

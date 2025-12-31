@@ -10,7 +10,7 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import dotenv from 'dotenv';
 import { StartInfinityClient } from './api/startinfinity.js';
-import { formatItems, formatItem, createItemSummary, createMemberMap, createSnapshotReport, Attribute } from './utils/itemHelpers.js';
+import { formatItems, formatItem, createItemSummary, createMemberMap, createSnapshotReport, formatItemAsJson, Attribute } from './utils/itemHelpers.js';
 
 // Load environment variables
 dotenv.config();
@@ -323,6 +323,28 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
           },
           required: ['workspaceId', 'boardId'],
+        },
+      },
+      {
+        name: 'fetch_item_json',
+        description: 'Fetches all available data for an item by ID and returns it as JSON with attribute names as keys and values (uses "-" for attributes without values)',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            workspaceId: {
+              type: 'string',
+              description: 'Workspace ID',
+            },
+            boardId: {
+              type: 'string',
+              description: 'Board ID',
+            },
+            itemId: {
+              type: 'string',
+              description: 'Item ID',
+            },
+          },
+          required: ['workspaceId', 'boardId', 'itemId'],
         },
       },
     ],
@@ -723,6 +745,43 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             {
               type: 'text',
               text: JSON.stringify(response, null, 2),
+            },
+          ],
+        };
+      }
+
+      case 'fetch_item_json': {
+        const workspaceId = args?.workspaceId as string;
+        const boardId = args?.boardId as string;
+        const itemId = args?.itemId as string;
+        
+        if (!workspaceId || !boardId || !itemId) {
+          throw new McpError(
+            ErrorCode.InvalidParams,
+            'workspaceId, boardId, and itemId are required'
+          );
+        }
+
+        // Fetch item, attributes, and members in parallel
+        const [itemResult, attributesResult, membersResult] = await Promise.all([
+          apiClient.getItem(workspaceId, boardId, itemId),
+          apiClient.getAttributes(workspaceId, boardId),
+          apiClient.getMembers(workspaceId).catch(() => ({ data: [] })),
+        ]);
+
+        const item = itemResult.data || itemResult;
+        const attributes = attributesResult.data || [];
+        const members = membersResult.data || [];
+        const memberMap = createMemberMap(members);
+
+        // Format item as JSON with attribute names as keys
+        const itemJson = formatItemAsJson(item, attributes as Attribute[], memberMap);
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(itemJson, null, 2),
             },
           ],
         };
