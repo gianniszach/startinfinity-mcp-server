@@ -16,6 +16,10 @@ export interface UpdateItemValues {
   [attributeId: string]: any;
 }
 
+export interface CreateItemValues {
+  [attributeId: string]: any;
+}
+
 export class StartInfinityClient {
   private client: AxiosInstance;
   private workspaceId?: string;
@@ -121,8 +125,14 @@ export class StartInfinityClient {
     return this.request<any>('GET', `/workspaces/${workspaceId}/boards/${boardId}/folders`);
   }
 
-  async getAttributes(workspaceId: string, boardId: string): Promise<any> {
-    return this.request<any>('GET', `/workspaces/${workspaceId}/boards/${boardId}/attributes`);
+  async getAttributes(workspaceId: string, boardId: string, expand?: string[]): Promise<any> {
+    let url = `/workspaces/${workspaceId}/boards/${boardId}/attributes`;
+    if (expand && expand.length > 0) {
+      const params = new URLSearchParams();
+      expand.forEach(e => params.append('expand[]', e));
+      url += `?${params.toString()}`;
+    }
+    return this.request<any>('GET', url);
   }
 
   async getView(workspaceId: string, boardId: string, viewId: string): Promise<any> {
@@ -131,13 +141,53 @@ export class StartInfinityClient {
 
   async createComment(workspaceId: string, boardId: string, itemId: string, content: string): Promise<any> {
     return this.request<any>('POST', `/workspaces/${workspaceId}/boards/${boardId}/items/${itemId}/comments`, {
-      content,
+      text: content,
     });
   }
 
   async getMembers(workspaceId?: string): Promise<any> {
     const wsId = this.getWorkspaceId(workspaceId);
     return this.request<any>('GET', `/workspaces/${wsId}/members`);
+  }
+
+  async createItem(workspaceId: string, boardId: string, folderId: string, values: CreateItemValues): Promise<any> {
+    // Convert key-value object to array format expected by API
+    const valuesArray = Object.entries(values).map(([attributeId, data]) => ({
+      attribute_id: attributeId,
+      data: data,
+    }));
+    return this.request<any>('POST', `/workspaces/${workspaceId}/boards/${boardId}/items`, {
+      folder_id: folderId,
+      values: valuesArray,
+    });
+  }
+
+  async deleteItem(workspaceId: string, boardId: string, itemId: string): Promise<any> {
+    return this.request<any>('DELETE', `/workspaces/${workspaceId}/boards/${boardId}/items/${itemId}`);
+  }
+
+  async createFolder(workspaceId: string, boardId: string, name: string, parentId?: string): Promise<any> {
+    const body: { name: string; parent_id?: string } = { name };
+    if (parentId) {
+      body.parent_id = parentId;
+    }
+    return this.request<any>('POST', `/workspaces/${workspaceId}/boards/${boardId}/folders`, body);
+  }
+
+  async deleteFolder(workspaceId: string, boardId: string, folderId: string): Promise<any> {
+    return this.request<any>('DELETE', `/workspaces/${workspaceId}/boards/${boardId}/folders/${folderId}`);
+  }
+
+  async createBoard(workspaceId: string, name: string, description?: string): Promise<any> {
+    const body: { name: string; description?: string } = { name };
+    if (description) {
+      body.description = description;
+    }
+    return this.request<any>('POST', `/workspaces/${workspaceId}/boards`, body);
+  }
+
+  async deleteBoard(workspaceId: string, boardId: string): Promise<any> {
+    return this.request<any>('DELETE', `/workspaces/${workspaceId}/boards/${boardId}`);
   }
 }
 

@@ -1,0 +1,43 @@
+# Build stage
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+# Copy package files
+COPY package.json package-lock.json* ./
+
+# Install dependencies
+RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
+
+# Copy source files
+COPY tsconfig.json ./
+COPY tsconfig.mock-api.json ./
+COPY test ./test
+
+# Build only the mock API server
+RUN npx tsc -p tsconfig.mock-api.json
+
+# Production stage
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Copy package files
+COPY package.json package-lock.json* ./
+
+# Install production dependencies including express (needed for mock server)
+RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
+
+# Copy built application from builder stage
+COPY --from=builder /app/dist ./dist
+
+# Set environment variables
+ENV NODE_ENV=production
+ENV MOCK_API_PORT=3001
+
+# Expose port
+EXPOSE 3001
+
+# Run the mock API server
+CMD ["node", "dist/test/mock-api/server.js"]
+

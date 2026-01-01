@@ -5,3 +5,9 @@ dist/
 .DS_Store
 *.tsbuildinfo
 
+# Generated test files (Jest compiles TypeScript on the fly)
+test/**/*.js
+test/**/*.js.map
+test/**/*.d.ts
+test/**/*.d.ts.map
+

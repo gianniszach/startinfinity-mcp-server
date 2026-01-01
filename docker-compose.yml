@@ -1,6 +1,24 @@
-version: '3.8'
-
 services:
+  mock-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.mock-api
+    image: startinfinity-mock-api:latest
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./test/mock-api/responses:/app/responses
+    environment:
+      - MOCK_API_PORT=3001
+      - RESPONSES_DIR=/app/responses
+    command: ["node", "dist/test/mock-api/server.js"]
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3001/api/v2/workspaces/669/boards/test/items', (r) => process.exit(r.statusCode === 404 ? 0 : 1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
   startinfinity-mcp-server:
     build:
       context: .
@@ -8,8 +26,20 @@ services:
     image: startinfinity-mcp-server:latest
     stdin_open: true
     tty: true
+    volumes:
+      - ./src:/app/src
+      - ./dist:/app/dist
+      - ./test:/app/test
+      - ./jest.config.js:/app/jest.config.js
+      - ./tsconfig.json:/app/tsconfig.json
+      - ./tsconfig.test.json:/app/tsconfig.test.json
+      - ./package.json:/app/package.json
+      - ./node_modules:/app/node_modules
     environment:
       - STARTINFINITY_API_TOKEN=${STARTINFINITY_API_TOKEN}
       - STARTINFINITY_WORKSPACE_ID=${STARTINFINITY_WORKSPACE_ID}
+      - MOCK_API_URL=http://mock-api:3001
+    depends_on:
+      - mock-api
     # MCP servers communicate via stdio, so we keep stdin_open and tty enabled
 

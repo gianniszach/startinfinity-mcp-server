@@ -6,6 +6,8 @@ export interface Attribute {
   id: string;
   name: string;
   type: string;
+  options?: Array<{ id: string; name: string; [key: string]: any }>; // For label/select type attributes
+  [key: string]: any; // Allow other properties
 }
 
 export interface ValueObject {
@@ -30,6 +32,10 @@ export interface Member {
 
 export interface MemberMap {
   [memberId: number]: string; // Maps member ID to name
+}
+
+export interface LabelMap {
+  [labelId: string]: string; // Maps label ID to name
 }
 
 export interface FormattedItem {
@@ -74,6 +80,90 @@ export function resolveMemberNames(memberIds: number[], memberMap: MemberMap): s
 }
 
 /**
+ * Creates a mapping of label IDs to label names from attributes
+ * @param attributes - Array of attribute objects from the API
+ * @returns A map from label ID to label name
+ */
+export function createLabelMap(attributes: Attribute[]): LabelMap {
+  const labelMap: LabelMap = {};
+  
+  for (const attr of attributes) {
+    // Only process label and select type attributes
+    if (attr.type !== 'label' && attr.type !== 'select') {
+      continue;
+    }
+    
+    // Check settings.labels first (this is where StartInfinity stores label options)
+    const rawAttr = attr as any;
+    if (rawAttr.settings && rawAttr.settings.labels && Array.isArray(rawAttr.settings.labels)) {
+      for (const label of rawAttr.settings.labels) {
+        if (label.id && label.name) {
+          labelMap[label.id] = label.name;
+        }
+      }
+      continue; // Found labels in settings, skip other checks
+    }
+    
+    // Fallback: Check other possible locations for label options
+    let options: any[] = [];
+    
+    if (attr.options && Array.isArray(attr.options)) {
+      options = attr.options;
+    } else if (attr.values && Array.isArray(attr.values)) {
+      options = attr.values;
+    } else if (attr.labels && Array.isArray(attr.labels)) {
+      options = attr.labels;
+    } else if (attr.data && Array.isArray(attr.data)) {
+      options = attr.data;
+    } else if (rawAttr.label_options && Array.isArray(rawAttr.label_options)) {
+      options = rawAttr.label_options;
+    } else if (rawAttr.select_options && Array.isArray(rawAttr.select_options)) {
+      options = rawAttr.select_options;
+    }
+    
+    // Process options - handle different possible structures
+    for (const option of options) {
+      let optionId: string | undefined;
+      let optionName: string | undefined;
+      
+      if (option.id && option.name) {
+        // Standard format: { id: "...", name: "..." }
+        optionId = option.id;
+        optionName = option.name;
+      } else if (option.value && option.label) {
+        // Alternative format: { value: "...", label: "..." }
+        optionId = option.value;
+        optionName = option.label;
+      } else if (option.id) {
+        // If we have an ID, try to find a name field
+        optionId = option.id;
+        optionName = option.name || option.label || option.title || option.text || optionId;
+      } else if (option.value) {
+        // If we have a value, it might be the ID
+        optionId = option.value;
+        optionName = option.label || option.name || option.title || option.text || optionId;
+      }
+      
+      if (optionId && optionName) {
+        labelMap[optionId] = optionName;
+      }
+    }
+  }
+  
+  return labelMap;
+}
+
+/**
+ * Resolves label IDs to label names
+ * @param labelIds - Array of label IDs
+ * @param labelMap - Map of label ID to name
+ * @returns Array of label names
+ */
+export function resolveLabelNames(labelIds: string[], labelMap: LabelMap): string[] {
+  return labelIds.map(id => labelMap[id] || `Label ${id.substring(0, 8)}...`);
+}
+
+/**
  * Extracts the title from an item using the Name attribute
  * @param item - The item object with values array
  * @param nameAttributeId - The attribute ID for the Name field (default: common ID)
@@ -100,13 +190,15 @@ export function extractTitle(
  * @param attributes - Array of attribute definitions to map IDs to names
  * @param nameAttributeId - The attribute ID for the Name field
  * @param memberMap - Optional map of member IDs to names for resolving member attributes
+ * @param labelMap - Optional map of label IDs to names for resolving label attributes
  * @returns A formatted item with title and mapped attributes
  */
 export function formatItem(
   item: ItemWithValues,
   attributes: Attribute[] = [],
   nameAttributeId: string = '54767acf-0832-4080-839c-5556bbbd9f10',
-  memberMap?: MemberMap
+  memberMap?: MemberMap,
+  labelMap?: LabelMap
 ): FormattedItem {
   const attributeMap = new Map(attributes.map(attr => [attr.id, attr]));
   const formattedAttributes: Record<string, any> = {};
@@ -125,6 +217,11 @@ export function formatItem(
       // If this is a members attribute and we have a member map, resolve IDs to names
       if (attribute?.type === 'members' && Array.isArray(valueObj.data) && memberMap) {
         displayValue = resolveMemberNames(valueObj.data, memberMap);
+      }
+      
+      // If this is a label attribute and we have a label map, resolve IDs to names
+      if ((attribute?.type === 'label' || attribute?.type === 'select') && Array.isArray(valueObj.data) && labelMap) {
+        displayValue = resolveLabelNames(valueObj.data, labelMap);
       }
       
       formattedAttributes[attrName] = {
@@ -156,15 +253,17 @@ export function formatItem(
  * @param attributes - Array of attribute definitions
  * @param nameAttributeId - The attribute ID for the Name field
  * @param memberMap - Optional map of member IDs to names for resolving member attributes
+ * @param labelMap - Optional map of label IDs to names for resolving label attributes
  * @returns Array of formatted items
  */
 export function formatItems(
   items: ItemWithValues[],
   attributes: Attribute[] = [],
   nameAttributeId: string = '54767acf-0832-4080-839c-5556bbbd9f10',
-  memberMap?: MemberMap
+  memberMap?: MemberMap,
+  labelMap?: LabelMap
 ): FormattedItem[] {
-  return items.map(item => formatItem(item, attributes, nameAttributeId, memberMap));
+  return items.map(item => formatItem(item, attributes, nameAttributeId, memberMap, labelMap));
 }
 
 /**

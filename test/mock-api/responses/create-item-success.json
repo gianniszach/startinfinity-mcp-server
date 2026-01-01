@@ -1,0 +1,16 @@
+{
+  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "object": "item",
+  "folder_id": "f1f2f3f4-f5f6-7890-abcd-ef1234567890",
+  "values": [
+    {
+      "object": "value",
+      "attribute_id": "54767acf-0832-4080-839c-5556bbbd9f10",
+      "data": "New Item Name",
+      "deleted": false
+    }
+  ],
+  "created_at": "2025-01-15T10:30:00.000000Z",
+  "deleted": false
+}
+
