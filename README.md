@@ -1,29 +1,60 @@
 # StartInfinity MCP Server
 
-A Model Context Protocol (MCP) server that provides tools for managing StartInfinity projects via their API.
+A Model Context Protocol (MCP) server that provides comprehensive tools for managing StartInfinity projects via their API.
 
 ## Features
 
-This MCP server exposes 8 tools for interacting with the StartInfinity API:
+This MCP server exposes **21 tools** for interacting with the StartInfinity API:
 
+### Workspace & Board Management
 1. **fetch_dashboard** - Returns workspace information
 2. **fetch_boards** - Lists all boards in a workspace
 3. **fetch_board** - Gets detailed information about a specific board
-4. **fetch_items** - Lists items from a board (with optional folder filter)
-5. **fetch_item_details** - Gets detailed item information
-6. **update_item** - Updates item attributes
-7. **fetch_view** - Gets view configuration
-8. **post_comment** - Creates a comment on an item
+4. **create_board** - Creates a new board in a workspace
+5. **delete_board** - Deletes a board from a workspace
+
+### Folder Management
+6. **fetch_folders** - Lists all folders in a board
+7. **create_folder** - Creates a new folder in a board
+8. **delete_folder** - Deletes a folder from a board
+
+### Item Management
+9. **fetch_items** - Lists items from a board (with optional folder filter and pagination)
+10. **fetch_items_by_attribute** - Fetches items filtered by attribute name and value
+11. **fetch_item_details** - Gets detailed information about a specific item
+12. **fetch_item_json** - Fetches item data as JSON with attribute names as keys
+13. **create_item** - Creates a new item in a board folder
+14. **update_item** - Updates attributes of an existing item
+15. **delete_item** - Deletes (archives) an item from a board
+
+### Attributes & Views
+16. **fetch_attributes** - Lists all attributes for a board
+17. **fetch_view** - Gets view configuration for a specific view
+
+### Members & Formatting
+18. **fetch_members** - Lists all members in a workspace
+19. **fetch_items_formatted** - Fetches items with formatted attributes and titles for reporting
+
+### Comments & Snapshots
+20. **post_comment** - Creates a comment on a specific item
+21. **fetch_folder_snapshot** - Provides a snapshot report of items in progress and pending
 
 ## Prerequisites
 
 - Node.js 18+ 
 - A StartInfinity account with API access
 - A Personal Access Token from StartInfinity
+- Docker (optional, for containerized deployment)
 
-## Setup
+## Getting Started
 
-1. **Clone or navigate to this directory**
+### Quick Start
+
+1. **Clone the repository:**
+   ```bash
+   git clone <repository-url>
+   cd startinfinity-mcp-server
+   ```
 
 2. **Install dependencies:**
    ```bash
@@ -38,27 +69,32 @@ This MCP server exposes 8 tools for interacting with the StartInfinity API:
    ```
    
    Edit `.env` and add your credentials:
-   ```
+   ```env
    STARTINFINITY_API_TOKEN=your_api_token_here
    STARTINFINITY_WORKSPACE_ID=your_workspace_id_here
    ```
    
-   You can obtain your API token from your StartInfinity profile page. The workspace ID is optional if you provide it when calling tools.
+   **Important:** The `STARTINFINITY_WORKSPACE_ID` is **required** and must be set in the environment variable. It is no longer accepted as a tool parameter.
 
 4. **Build the project:**
    ```bash
    npm run build
    ```
 
-## Docker Setup
+5. **Run the server:**
+   ```bash
+   npm start
+   ```
 
-### Building the Docker Image
+### Docker Setup
+
+#### Building the Docker Image
 
 ```bash
 docker build -t startinfinity-mcp-server:latest .
 ```
 
-### Running with Docker
+#### Running with Docker
 
 **Using docker run:**
 ```bash
@@ -71,7 +107,7 @@ docker run -it --rm \
 **Using docker-compose:**
 
 1. Create a `.env` file with your credentials:
-   ```
+   ```env
    STARTINFINITY_API_TOKEN=your_api_token_here
    STARTINFINITY_WORKSPACE_ID=your_workspace_id_here
    ```
@@ -81,10 +117,31 @@ docker run -it --rm \
    docker-compose up
    ```
 
-### Connecting Docker Container to Cursor AI
+### Connecting to Cursor AI
 
-When configuring the MCP server in Cursor, use:
+To connect this MCP server to Cursor AI:
 
+1. Open Cursor settings
+2. Navigate to MCP settings
+3. Add a new MCP server with the following configuration:
+
+**For local Node.js:**
+```json
+{
+  "mcpServers": {
+    "startinfinity": {
+      "command": "node",
+      "args": ["/path/to/startinfinity-mcp-server/dist/index.js"],
+      "env": {
+        "STARTINFINITY_API_TOKEN": "your_api_token_here",
+        "STARTINFINITY_WORKSPACE_ID": "your_workspace_id_here"
+      }
+    }
+  }
+}
+```
+
+**For Docker:**
 ```json
 {
   "mcpServers": {
@@ -103,7 +160,7 @@ When configuring the MCP server in Cursor, use:
 }
 ```
 
-Or if using docker-compose:
+**For docker-compose:**
 ```json
 {
   "mcpServers": {
@@ -123,60 +180,83 @@ Or if using docker-compose:
 }
 ```
 
-## Running the Server
+Replace `/path/to/startinfinity-mcp-server` with the actual path to this project directory.
 
-To run the MCP server:
+## Basic Usage
 
-```bash
-npm start
-```
+### Environment Variables
 
-For development with auto-rebuild:
+**Required:**
+- `STARTINFINITY_API_TOKEN` - Your StartInfinity API token (obtain from your profile page)
+- `STARTINFINITY_WORKSPACE_ID` - Your workspace ID (required, must be set in environment)
 
-```bash
-npm run dev
-```
+**Note:** The `workspaceId` parameter has been removed from all tools. The workspace ID is now always taken from the `STARTINFINITY_WORKSPACE_ID` environment variable.
 
-In another terminal:
-```bash
-npm start
-```
+### Common Workflows
 
-## Connecting to Cursor AI
-
-To connect this MCP server to Cursor AI:
-
-1. Open Cursor settings
-2. Navigate to MCP settings
-3. Add a new MCP server with the following configuration:
+#### 1. Fetching Items by Status
 
 ```json
 {
-  "mcpServers": {
-    "startinfinity": {
-      "command": "node",
-      "args": ["/path/to/startinfinity-mcp-server/dist/index.js"],
-      "env": {
-        "STARTINFINITY_API_TOKEN": "your_api_token_here",
-        "STARTINFINITY_WORKSPACE_ID": "your_workspace_id_here"
-      }
+  "tool": "fetch_items_by_attribute",
+  "arguments": {
+    "boardId": "LA1dW8i1TTK",
+    "attributeName": "Status",
+    "attributeValue": "Doing"
+  }
+}
+```
+
+#### 2. Creating a New Item
+
+```json
+{
+  "tool": "create_item",
+  "arguments": {
+    "boardId": "LA1dW8i1TTK",
+    "folderId": "folder_id_here",
+    "values": {
+      "54767acf-0832-4080-839c-5556bbbd9f10": "Item Name",
+      "attribute_id_2": "value_2"
     }
   }
 }
 ```
 
-Replace `/path/to/startinfinity-mcp-server` with the actual path to this project directory.
+#### 3. Posting a Comment
 
-## Tool Usage Examples
+```json
+{
+  "tool": "post_comment",
+  "arguments": {
+    "boardId": "LA1dW8i1TTK",
+    "itemId": "item_id_here",
+    "content": "This is a comment"
+  }
+}
+```
+
+#### 4. Getting Formatted Items
+
+```json
+{
+  "tool": "fetch_items_formatted",
+  "arguments": {
+    "boardId": "LA1dW8i1TTK",
+    "folderId": "optional_folder_id",
+    "includeSummary": true
+  }
+}
+```
+
+## Tool Reference
 
 ### Fetch Dashboard
 Returns workspace information.
 
 **Input:**
 ```json
-{
-  "workspaceId": "669"  // Optional if STARTINFINITY_WORKSPACE_ID is set
-}
+{}
 ```
 
 ### Fetch Boards
@@ -184,9 +264,7 @@ Lists all boards in a workspace.
 
 **Input:**
 ```json
-{
-  "workspaceId": "669"  // Optional if STARTINFINITY_WORKSPACE_ID is set
-}
+{}
 ```
 
 ### Fetch Board
@@ -195,7 +273,16 @@ Gets detailed information about a specific board.
 **Input:**
 ```json
 {
-  "workspaceId": "669",
+  "boardId": "LA1dW8i1TTK"
+}
+```
+
+### Fetch Folders
+Lists all folders in a board.
+
+**Input:**
+```json
+{
   "boardId": "LA1dW8i1TTK"
 }
 ```
@@ -206,8 +293,23 @@ Lists items from a board with optional filtering.
 **Input:**
 ```json
 {
-  "workspaceId": "669",
   "boardId": "LA1dW8i1TTK",
+  "folderId": "optional_folder_id",
+  "limit": 50,
+  "before": "optional_cursor",
+  "after": "optional_cursor"
+}
+```
+
+### Fetch Items by Attribute
+Fetches items filtered by a specific attribute name and value.
+
+**Input:**
+```json
+{
+  "boardId": "LA1dW8i1TTK",
+  "attributeName": "Status",
+  "attributeValue": "Doing",
   "folderId": "optional_folder_id",
   "limit": 50
 }
@@ -219,7 +321,6 @@ Gets detailed information about a specific item.
 **Input:**
 ```json
 {
-  "workspaceId": "669",
   "boardId": "LA1dW8i1TTK",
   "itemId": "item_id_here"
 }
@@ -231,7 +332,6 @@ Updates attributes of an existing item.
 **Input:**
 ```json
 {
-  "workspaceId": "669",
   "boardId": "LA1dW8i1TTK",
   "itemId": "item_id_here",
   "values": {
@@ -247,9 +347,39 @@ Gets view configuration for a specific view.
 **Input:**
 ```json
 {
-  "workspaceId": "669",
   "boardId": "LA1dW8i1TTK",
   "viewId": "view_id_here"
+}
+```
+
+### Fetch Attributes
+Lists all attributes for a board to understand the attribute structure.
+
+**Input:**
+```json
+{
+  "boardId": "LA1dW8i1TTK"
+}
+```
+
+### Fetch Members
+Lists all members in a workspace to map member IDs to names.
+
+**Input:**
+```json
+{}
+```
+
+### Fetch Items Formatted
+Fetches items with formatted attributes and titles for reporting.
+
+**Input:**
+```json
+{
+  "boardId": "LA1dW8i1TTK",
+  "folderId": "optional_folder_id",
+  "limit": 50,
+  "includeSummary": true
 }
 ```
 
@@ -259,11 +389,145 @@ Creates a comment on a specific item.
 **Input:**
 ```json
 {
-  "workspaceId": "669",
   "boardId": "LA1dW8i1TTK",
   "itemId": "item_id_here",
   "content": "This is a comment"
 }
+```
+
+### Fetch Folder Snapshot
+Provides a snapshot report of items in progress and pending in a folder.
+
+**Input:**
+```json
+{
+  "boardId": "LA1dW8i1TTK",
+  "folderName": "Folder Name",
+  "folderId": "optional_folder_id"
+}
+```
+
+### Fetch Item JSON
+Fetches all available data for an item as JSON with attribute names as keys.
+
+**Input:**
+```json
+{
+  "boardId": "LA1dW8i1TTK",
+  "itemId": "item_id_here"
+}
+```
+
+### Create Item
+Creates a new item in a board folder.
+
+**Input:**
+```json
+{
+  "boardId": "LA1dW8i1TTK",
+  "folderId": "folder_id_here",
+  "values": {
+    "attribute_id": "value"
+  }
+}
+```
+
+### Delete Item
+Deletes (archives) an item from a board.
+
+**Input:**
+```json
+{
+  "boardId": "LA1dW8i1TTK",
+  "itemId": "item_id_here"
+}
+```
+
+### Create Folder
+Creates a new folder in a board.
+
+**Input:**
+```json
+{
+  "boardId": "LA1dW8i1TTK",
+  "name": "Folder Name",
+  "parentId": "optional_parent_folder_id"
+}
+```
+
+### Delete Folder
+Deletes a folder from a board.
+
+**Input:**
+```json
+{
+  "boardId": "LA1dW8i1TTK",
+  "folderId": "folder_id_here"
+}
+```
+
+### Create Board
+Creates a new board in a workspace.
+
+**Input:**
+```json
+{
+  "name": "Board Name",
+  "description": "Optional description"
+}
+```
+
+### Delete Board
+Deletes a board from a workspace.
+
+**Input:**
+```json
+{
+  "boardId": "board_id_here"
+}
+```
+
+## Development
+
+### Running in Development Mode
+
+For development with auto-rebuild:
+
+```bash
+npm run dev
+```
+
+In another terminal:
+```bash
+npm start
+```
+
+### Testing
+
+The project includes a comprehensive test suite with a mock API server.
+
+**Run tests:**
+```bash
+npm test
+```
+
+**Run tests with coverage:**
+```bash
+npm run test:coverage
+```
+
+**Run tests in watch mode:**
+```bash
+npm run test:watch
+```
+
+**Run tests in Docker:**
+```bash
+# Start mock API server
+docker-compose up -d mock-api
+
+# Run tests
+docker-compose run --rm --entrypoint sh startinfinity-mcp-server -c "npm install --include=dev && npm test"
 ```
 
 ## API Documentation
@@ -280,6 +544,7 @@ The StartInfinity API has a rate limit of 180 requests per minute. The server wi
 The server handles various error scenarios:
 - Missing or invalid API tokens
 - Missing required parameters
+- Missing `STARTINFINITY_WORKSPACE_ID` environment variable
 - API rate limiting (429 errors)
 - Network errors
 - Invalid API responses
@@ -289,15 +554,3 @@ All errors are returned in a user-friendly format.
 ## License
 
 MIT
-
-"startinfinity": {
-      "command": "docker",
-      "args": [
-        "run",
-        "-i",
-        "--rm",
-        "-e", "STARTINFINITY_API_TOKEN=your_api_token_here",
-        "-e", "STARTINFINITY_WORKSPACE_ID=your_workspace_id_here",
-        "startinfinity-mcp-server:latest"
-      ]
-    }
