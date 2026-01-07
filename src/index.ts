@@ -17,6 +17,7 @@ dotenv.config();
 
 const API_TOKEN = process.env.STARTINFINITY_API_TOKEN;
 const WORKSPACE_ID = process.env.STARTINFINITY_WORKSPACE_ID;
+const RESTRICTED_BOARD_ID = process.env.STARTINFINITY_BOARD_ID;
 
 if (!API_TOKEN) {
   console.error('Error: STARTINFINITY_API_TOKEN environment variable is required');
@@ -434,6 +435,16 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
   };
 });
 
+// Validate board ID against restriction
+function validateBoardId(boardId: string): void {
+  if (RESTRICTED_BOARD_ID && boardId !== RESTRICTED_BOARD_ID) {
+    throw new McpError(
+      ErrorCode.InvalidParams,
+      `Access restricted to board ${RESTRICTED_BOARD_ID}. Provided boardId: ${boardId}`
+    );
+  }
+}
+
 // Handle tool calls
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
@@ -484,6 +495,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             'boardId is required'
           );
         }
+        validateBoardId(boardId);
         if (!WORKSPACE_ID) {
           throw new McpError(
             ErrorCode.InvalidParams,
@@ -509,6 +521,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             'boardId is required'
           );
         }
+        validateBoardId(boardId);
         if (!WORKSPACE_ID) {
           throw new McpError(
             ErrorCode.InvalidParams,
@@ -534,6 +547,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             'boardId is required'
           );
         }
+        validateBoardId(boardId);
         if (!WORKSPACE_ID) {
           throw new McpError(
             ErrorCode.InvalidParams,
@@ -570,6 +584,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             'boardId, attributeName, and attributeValue are required'
           );
         }
+        validateBoardId(boardId);
         const folderId = args?.folderId as string | undefined;
         const limit = args?.limit as number | undefined;
 
@@ -730,6 +745,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             'boardId and itemId are required'
           );
         }
+        validateBoardId(boardId);
         
         // Use workspace ID from environment (required)
         if (!WORKSPACE_ID) {
@@ -760,6 +776,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             'boardId, itemId, and values are required'
           );
         }
+        validateBoardId(boardId);
         if (!WORKSPACE_ID) {
           throw new McpError(
             ErrorCode.InvalidParams,
@@ -786,6 +803,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             'boardId and viewId are required'
           );
         }
+        validateBoardId(boardId);
         if (!WORKSPACE_ID) {
           throw new McpError(
             ErrorCode.InvalidParams,
@@ -811,6 +829,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             'boardId is required'
           );
         }
+        validateBoardId(boardId);
         
         // Use workspace ID from environment (required)
         if (!WORKSPACE_ID) {
@@ -861,6 +880,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             'boardId is required'
           );
         }
+        validateBoardId(boardId);
         if (!WORKSPACE_ID) {
           throw new McpError(
             ErrorCode.InvalidParams,
@@ -927,6 +947,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             'boardId, itemId, and content are required'
           );
         }
+        validateBoardId(boardId);
         
         // Use workspace ID from environment (required)
         if (!WORKSPACE_ID) {
@@ -958,6 +979,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             'boardId is required'
           );
         }
+        validateBoardId(boardId);
         if (!WORKSPACE_ID) {
           throw new McpError(
             ErrorCode.InvalidParams,
@@ -1082,6 +1104,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             'boardId and itemId are required'
           );
         }
+        validateBoardId(boardId);
         if (!WORKSPACE_ID) {
           throw new McpError(
             ErrorCode.InvalidParams,
@@ -1124,6 +1147,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             'boardId, folderId, and values are required'
           );
         }
+        validateBoardId(boardId);
         if (!WORKSPACE_ID) {
           throw new McpError(
             ErrorCode.InvalidParams,
@@ -1150,6 +1174,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             'boardId and itemId are required'
           );
         }
+        validateBoardId(boardId);
         if (!WORKSPACE_ID) {
           throw new McpError(
             ErrorCode.InvalidParams,
@@ -1177,6 +1202,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             'boardId and name are required'
           );
         }
+        validateBoardId(boardId);
         if (!WORKSPACE_ID) {
           throw new McpError(
             ErrorCode.InvalidParams,
@@ -1203,6 +1229,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             'boardId and folderId are required'
           );
         }
+        validateBoardId(boardId);
         if (!WORKSPACE_ID) {
           throw new McpError(
             ErrorCode.InvalidParams,
@@ -1254,6 +1281,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             'boardId is required'
           );
         }
+        validateBoardId(boardId);
         if (!WORKSPACE_ID) {
           throw new McpError(
             ErrorCode.InvalidParams,

@@ -72,9 +72,10 @@ This MCP server exposes **21 tools** for interacting with the StartInfinity API:
    ```env
    STARTINFINITY_API_TOKEN=your_api_token_here
    STARTINFINITY_WORKSPACE_ID=your_workspace_id_here
+   STARTINFINITY_BOARD_ID=your_board_id_here  # Optional: restricts access to a specific board
    ```
    
-   **Important:** The `STARTINFINITY_WORKSPACE_ID` is **required** and must be set in the environment variable. It is no longer accepted as a tool parameter.
+   **Important:** The `STARTINFINITY_WORKSPACE_ID` is **required** and must be set in the environment variable. It is no longer accepted as a tool parameter. `STARTINFINITY_BOARD_ID` is optional and restricts all board-specific operations to the specified board when set.
 
 4. **Build the project:**
    ```bash
@@ -101,8 +102,11 @@ docker build -t startinfinity-mcp-server:latest .
 docker run -it --rm \
   -e STARTINFINITY_API_TOKEN=your_api_token_here \
   -e STARTINFINITY_WORKSPACE_ID=your_workspace_id_here \
+  -e STARTINFINITY_BOARD_ID=your_board_id_here \
   startinfinity-mcp-server:latest
 ```
+
+Note: `STARTINFINITY_BOARD_ID` is optional. Omit it if you don't need board restrictions.
 
 **Using docker-compose:**
 
@@ -110,6 +114,7 @@ docker run -it --rm \
    ```env
    STARTINFINITY_API_TOKEN=your_api_token_here
    STARTINFINITY_WORKSPACE_ID=your_workspace_id_here
+   STARTINFINITY_BOARD_ID=your_board_id_here  # Optional: restricts access to a specific board
    ```
 
 2. Run with docker-compose:
@@ -153,12 +158,15 @@ To connect this MCP server to Cursor AI:
         "--rm",
         "-e", "STARTINFINITY_API_TOKEN=your_api_token_here",
         "-e", "STARTINFINITY_WORKSPACE_ID=your_workspace_id_here",
+        "-e", "STARTINFINITY_BOARD_ID=your_board_id_here",
         "startinfinity-mcp-server:latest"
       ]
     }
   }
 }
 ```
+
+Note: `STARTINFINITY_BOARD_ID` is optional. Omit the `-e` line if you don't need board restrictions.
 
 **For docker-compose:**
 ```json
@@ -173,12 +181,15 @@ To connect this MCP server to Cursor AI:
       ],
       "env": {
         "STARTINFINITY_API_TOKEN": "your_api_token_here",
-        "STARTINFINITY_WORKSPACE_ID": "your_workspace_id_here"
+        "STARTINFINITY_WORKSPACE_ID": "your_workspace_id_here",
+        "STARTINFINITY_BOARD_ID": "your_board_id_here"
       }
     }
   }
 }
 ```
+
+Note: `STARTINFINITY_BOARD_ID` is optional. Omit it from the `env` object if you don't need board restrictions.
 
 Replace `/path/to/startinfinity-mcp-server` with the actual path to this project directory.
 
@@ -189,6 +200,9 @@ Replace `/path/to/startinfinity-mcp-server` with the actual path to this project
 **Required:**
 - `STARTINFINITY_API_TOKEN` - Your StartInfinity API token (obtain from your profile page)
 - `STARTINFINITY_WORKSPACE_ID` - Your workspace ID (required, must be set in environment)
+
+**Optional:**
+- `STARTINFINITY_BOARD_ID` - When set, restricts all board-specific tool operations to only this board. All tools that accept a `boardId` parameter will validate that the provided `boardId` matches this value. Workspace-level tools (`fetch_dashboard`, `fetch_boards`, `fetch_members`, `create_board`) continue to work normally without restrictions.
 
 **Note:** The `workspaceId` parameter has been removed from all tools. The workspace ID is now always taken from the `STARTINFINITY_WORKSPACE_ID` environment variable.
 

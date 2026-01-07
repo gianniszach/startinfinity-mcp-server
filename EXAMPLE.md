@@ -35,7 +35,7 @@ This document demonstrates practical usage of the StartInfinity MCP server tools
 
 **Step 2: Get items completed today (status = "Done")**
 
-**Example Prompt:** "What items are marked as Done in board LA1dW8i1TTK?"
+**Example Prompt:** "What items are marked as Done in board Marketing?"
 
 ```json
 {
